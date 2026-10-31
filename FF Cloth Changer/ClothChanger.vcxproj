@@ -166,6 +166,7 @@
     <ClCompile Include="src\cloth\cloth_changer.cpp" />
     <ClCompile Include="src\ui.cpp" />
     <ClCompile Include="src\screen\dashboard.cpp" />
+    <ClCompile Include="src\screen\cloth.cpp" />
     <ClCompile Include="src\screen\common\dashboard_common.cpp" />
     <ClCompile Include="src\screen\home.cpp" />
     <ClCompile Include="src\screen\loading.cpp" />

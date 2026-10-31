@@ -25,7 +25,8 @@ struct NavEntry
 };
 
 const NavEntry kNav[] = {
-	{ "Home",  "Your changer at a glance.",  PageHome,  icon_home },
+	{ "Home",    "Your changer at a glance.",           PageHome,    icon_home },
+	{ "Wardrobe","Swap what the game renders on you.",  PageCloth,   icon_hanger },
 };
 
 constexpr int kNavCount = static_cast<int>(sizeof(kNav) / sizeof(kNav[0]));
@@ -247,6 +248,7 @@ void Render()
 	// the placeholder above until a page gets its own file and dash::Page value.
 	switch (state.page)
 	{
+	case PageCloth:       DrawCloth(); break;
 	case PageProduct:     draw_placeholder("Product", icon_product); break;
 	case PageGameUpdates: draw_placeholder("Game Updates", icon_updates); break;
 	case PageSocials:     draw_placeholder("Socials", icon_socials); break;

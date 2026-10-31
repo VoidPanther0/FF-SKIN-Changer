@@ -45,6 +45,9 @@
     <ClCompile Include="src\screen\dashboard.cpp">
       <Filter>Screens</Filter>
     </ClCompile>
+    <ClCompile Include="src\screen\cloth.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
     <ClCompile Include="src\screen\common\dashboard_common.cpp">
       <Filter>Screens</Filter>
     </ClCompile>

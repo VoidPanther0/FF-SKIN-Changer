@@ -178,10 +178,10 @@ void draw_status()
 		label, color);
 
 	// The reason sits next to the badge so a failure explains itself without
-	// a tooltip.
+	// a tooltip. The clip stops short of the Reload button.
 	const char* detail = cloth::AttachMessage();
 	ImDrawList* draw = ImGui::GetWindowDrawList();
-	draw->PushClipRect(ImVec2(kContentLeft + 134.0f, kStatusTop), ImVec2(kContentLeft + 330.0f, kStatusBottom), true);
+	draw->PushClipRect(ImVec2(kContentLeft + 134.0f, kStatusTop), ImVec2(kContentRight - 260.0f, kStatusBottom), true);
 	text(font.caption, 10.0f, ImVec2(kContentLeft + 134.0f, kStatusTop + 15.0f), kDim, detail);
 	draw->PopClipRect();
 
@@ -227,43 +227,55 @@ void draw_slots()
 	const ImVec2 origin = ImGui::GetCursorScreenPos();
 
 	const int count_slots = static_cast<int>(g_slots.size());
-	for (int i = 0; i < count_slots; ++i)
+
+	// Only the rows on screen are submitted. A wardrobe holds thousands of
+	// entries and one button each per frame would dominate the frame time
+	// while most of them are clipped anyway.
+	ImGuiListClipper clipper;
+	clipper.Begin(count_slots, kSlotRow);
+
+	while (clipper.Step())
 	{
-		const Rect row = rect(origin.x, origin.y + static_cast<float>(i) * kSlotRow,
-			origin.x + width(area) - 6.0f, origin.y + static_cast<float>(i) * kSlotRow + kSlotRow - 4.0f);
+		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+		{
+			const Rect row = rect(origin.x, origin.y + static_cast<float>(i) * kSlotRow,
+				origin.x + width(area) - 6.0f, origin.y + static_cast<float>(i) * kSlotRow + kSlotRow - 4.0f);
 
-		const bool selected = i == g_selected_slot;
+			const bool selected = i == g_selected_slot;
 
-		ImGui::PushID(i);
-		ImGui::SetCursorScreenPos(row.min);
-		const bool clicked = ImGui::InvisibleButton("##slot", ImVec2(width(row), height(row)));
-		const bool hovered = ImGui::IsItemHovered();
-		ImGui::PopID();
+			ImGui::PushID(i);
+			ImGui::SetCursorScreenPos(row.min);
+			const bool clicked = ImGui::InvisibleButton("##slot", ImVec2(width(row), height(row)));
+			const bool hovered = ImGui::IsItemHovered();
+			ImGui::PopID();
 
-		if (hovered)
-			ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+			if (hovered)
+				ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 
-		if (selected)
-			gradient_box(row, fade(accent_color(), 0.22f), fade(kPurple, 0.22f), 8.0f);
-		else if (hovered)
-			box(row, kCardSoft, 8.0f);
-		else
-			box(row, fade(kCardSoft, 0.55f), 8.0f);
+			if (selected)
+				gradient_box(row, fade(accent_color(), 0.22f), fade(kPurple, 0.22f), 8.0f);
+			else if (hovered)
+				box(row, kCardSoft, 8.0f);
+			else
+				box(row, fade(kCardSoft, 0.55f), 8.0f);
 
-		char index[24];
-		std::snprintf(index, sizeof(index), "Slot %d", g_slots[static_cast<std::size_t>(i)].index);
-		text(font.semibold, 12.0f, ImVec2(row.min.x + 12.0f, row.min.y + 6.0f),
-			selected ? kWhite : kText, index);
+			char index[24];
+			std::snprintf(index, sizeof(index), "Slot %d", g_slots[static_cast<std::size_t>(i)].index);
+			text(font.semibold, 12.0f, ImVec2(row.min.x + 12.0f, row.min.y + 6.0f),
+				selected ? kWhite : kText, index);
 
-		char id[24];
-		std::snprintf(id, sizeof(id), "%u", g_slots[static_cast<std::size_t>(i)].item_id);
-		const float id_w = text_width(font.caption, 10.0f, id);
-		text(font.caption, 10.0f, ImVec2(row.max.x - 12.0f - id_w, row.min.y + 8.0f), kDim, id);
+			char id[24];
+			std::snprintf(id, sizeof(id), "%u", g_slots[static_cast<std::size_t>(i)].item_id);
+			const float id_w = text_width(font.caption, 10.0f, id);
+			text(font.caption, 10.0f, ImVec2(row.max.x - 12.0f - id_w, row.min.y + 8.0f), kDim, id);
 
-		if (clicked)
-			g_selected_slot = i;
+			if (clicked)
+				g_selected_slot = i;
+		}
 	}
 
+	// The dummy sets the content height so the child scrolls the full list
+	// even though most rows were never submitted.
 	ImGui::SetCursorScreenPos(origin);
 	ImGui::Dummy(ImVec2(1.0f, static_cast<float>(count_slots) * kSlotRow));
 	ImGui::EndChild();
@@ -346,47 +358,56 @@ void draw_picker()
 		const ImVec2 origin = ImGui::GetCursorScreenPos();
 
 		const int count_items = static_cast<int>(g_items.size());
-		for (int i = 0; i < count_items; ++i)
+
+		// Same reason as the wardrobe list: only the visible rows are
+		// submitted, the rest are never touched.
+		ImGuiListClipper clipper;
+		clipper.Begin(count_items, kItemRow);
+
+		while (clipper.Step())
 		{
-			const Rect row = rect(origin.x, origin.y + static_cast<float>(i) * kItemRow,
-				origin.x + width(list) - 6.0f, origin.y + static_cast<float>(i) * kItemRow + kItemRow - 4.0f);
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+			{
+				const Rect row = rect(origin.x, origin.y + static_cast<float>(i) * kItemRow,
+					origin.x + width(list) - 6.0f, origin.y + static_cast<float>(i) * kItemRow + kItemRow - 4.0f);
 
-			const bool selected = i == g_selected_item;
+				const bool selected = i == g_selected_item;
 
-			ImGui::PushID(i);
-			ImGui::SetCursorScreenPos(row.min);
-			const bool clicked = ImGui::InvisibleButton("##item", ImVec2(width(row), height(row)));
-			const bool hovered = ImGui::IsItemHovered();
-			ImGui::PopID();
+				ImGui::PushID(i);
+				ImGui::SetCursorScreenPos(row.min);
+				const bool clicked = ImGui::InvisibleButton("##item", ImVec2(width(row), height(row)));
+				const bool hovered = ImGui::IsItemHovered();
+				ImGui::PopID();
 
-			if (hovered)
-				ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+				if (hovered)
+					ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 
-			if (selected)
-				gradient_box(row, fade(accent_color(), 0.22f), fade(kPurple, 0.22f), 8.0f);
-			else if (hovered)
-				box(row, kCardSoft, 8.0f);
-			else
-				box(row, fade(kCardSoft, 0.55f), 8.0f);
+				if (selected)
+					gradient_box(row, fade(accent_color(), 0.22f), fade(kPurple, 0.22f), 8.0f);
+				else if (hovered)
+					box(row, kCardSoft, 8.0f);
+				else
+					box(row, fade(kCardSoft, 0.55f), 8.0f);
 
-			const cloth::Entry& entry = g_items[static_cast<std::size_t>(i)];
-			const std::string& label = g_labels[static_cast<std::size_t>(i)];
+				const cloth::Entry& entry = g_items[static_cast<std::size_t>(i)];
+				const std::string& name = g_labels[static_cast<std::size_t>(i)];
 
-			// The name is clipped to the row so a long description cannot run
-			// into the id on the right.
-			ImDrawList* draw = ImGui::GetWindowDrawList();
-			draw->PushClipRect(ImVec2(row.min.x + 12.0f, row.min.y), ImVec2(row.max.x - 86.0f, row.max.y), true);
-			text(font.semibold, 12.0f, ImVec2(row.min.x + 12.0f, row.min.y + 5.0f),
-				selected ? kWhite : kText, label.c_str());
-			draw->PopClipRect();
+				// The name is clipped to the row so a long description cannot
+				// run into the id on the right.
+				ImDrawList* draw = ImGui::GetWindowDrawList();
+				draw->PushClipRect(ImVec2(row.min.x + 12.0f, row.min.y), ImVec2(row.max.x - 86.0f, row.max.y), true);
+				text(font.semibold, 12.0f, ImVec2(row.min.x + 12.0f, row.min.y + 5.0f),
+					selected ? kWhite : kText, name.c_str());
+				draw->PopClipRect();
 
-			char id[24];
-			std::snprintf(id, sizeof(id), "%u", entry.item_id);
-			const float id_w = text_width(font.caption, 10.0f, id);
-			text(font.caption, 10.0f, ImVec2(row.max.x - 12.0f - id_w, row.min.y + 7.0f), kDim, id);
+				char id[24];
+				std::snprintf(id, sizeof(id), "%u", entry.item_id);
+				const float id_w = text_width(font.caption, 10.0f, id);
+				text(font.caption, 10.0f, ImVec2(row.max.x - 12.0f - id_w, row.min.y + 7.0f), kDim, id);
 
-			if (clicked)
-				g_selected_item = i;
+				if (clicked)
+					g_selected_item = i;
+			}
 		}
 
 		ImGui::SetCursorScreenPos(origin);
