@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 // loader-auth
-// Server-side authentication and release metadata for the Sachin Loader client.
+// Server-side authentication and release metadata for the Cloth Changer client.
 //
 // The client sends username + password + HWID only. This function verifies the
 // credentials against Supabase Auth, then enforces ban / HWID limits through

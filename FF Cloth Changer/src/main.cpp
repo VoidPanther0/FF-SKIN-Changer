@@ -3,9 +3,11 @@
 
 #include <dwmapi.h>
 #include <shellapi.h>
+#include <tlhelp32.h>
 
 #include <exception>
 #include <cstdlib>
+#include <cwchar>
 #include <string>
 
 namespace {
@@ -91,6 +93,73 @@ bool StartProcess(const std::wstring& file)
 	CloseHandle(process.hThread);
 	CloseHandle(process.hProcess);
 	return true;
+}
+
+// Emulator process names, matched case-insensitively against the running
+// process list. The tool drives a game running inside an emulator, so there is
+// nothing to attach to unless one of these is alive.
+constexpr const wchar_t* const kEmulatorProcesses[] = {
+	// BlueStacks 5 / 4 / X
+	L"HD-Player.exe",
+	L"HD-Agent.exe",
+	L"BstkSvc.exe",
+	L"Bluestacks.exe",
+	L"BlueStacks.exe",
+	// LDPlayer 9 / 4
+	L"dnplayer.exe",
+	L"Ld9BoxHeadless.exe",
+	L"LdVBoxHeadless.exe",
+	// NoxPlayer
+	L"Nox.exe",
+	L"NoxVMHandle.exe",
+	L"NoxSVC.exe",
+	// MEmu Play
+	L"MEmu.exe",
+	L"MEmuHeadless.exe",
+	L"MEmuSVC.exe",
+	// MuMu Player
+	L"NemuPlayer.exe",
+	L"NemuHeadless.exe",
+	L"MuMuPlayer.exe",
+	// GameLoop
+	L"GameLoop.exe",
+	L"AppMarket.exe",
+	L"TxAppMarket.exe",
+	// SmartGaga
+	L"ProjectTitan.exe",
+	L"EngineService.exe",
+	// Genymotion / VirtualBox based
+	L"Genymotion.exe",
+	L"VBoxHeadless.exe",
+};
+
+bool IsEmulatorRunning()
+{
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (snapshot == INVALID_HANDLE_VALUE)
+		return false;
+
+	bool found = false;
+	PROCESSENTRY32W entry{};
+	entry.dwSize = sizeof(entry);
+
+	if (Process32FirstW(snapshot, &entry))
+	{
+		do
+		{
+			for (const wchar_t* name : kEmulatorProcesses)
+			{
+				if (_wcsicmp(entry.szExeFile, name) == 0)
+				{
+					found = true;
+					break;
+				}
+			}
+		} while (!found && Process32NextW(snapshot, &entry));
+	}
+
+	CloseHandle(snapshot);
+	return found;
 }
 
 // --apply-update <target> <pid>
@@ -241,6 +310,14 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command_line, i
 		LocalFree(arguments);
 
 	g_updated = CleanupPreviousBuild();
+
+	// The tool needs a running emulator instance. Without one there is nothing
+	// to attach to, so say so and quit before any window is created.
+	if (!IsEmulatorRunning())
+	{
+		ShowError(L"No emulator detected.\n\nOpen your emulator (BlueStacks, LDPlayer, Nox, MEmu, MuMu, GameLoop) and make sure Free Fire is running inside it, then start this again.");
+		return 1;
+	}
 
 	try
 	{
