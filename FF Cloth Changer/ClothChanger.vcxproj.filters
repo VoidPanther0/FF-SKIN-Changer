@@ -25,6 +25,9 @@
     <Filter Include="Screens">
       <UniqueIdentifier>{7B4E2D61-9C38-4F5A-B1D2-6E8A0C3F9D24}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Cloth">
+      <UniqueIdentifier>{D4E7A1C3-5B28-4F6E-9C11-8A7B32E5F0D9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -32,6 +35,9 @@
     </ClCompile>
     <ClCompile Include="src\auth\supabase_auth.cpp">
       <Filter>Auth</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cloth\cloth_changer.cpp">
+      <Filter>Cloth</Filter>
     </ClCompile>
     <ClCompile Include="src\ui.cpp">
       <Filter>Source Files</Filter>
@@ -94,6 +100,12 @@
     </ClInclude>
     <ClInclude Include="src\auth\supabase_auth.h">
       <Filter>Auth</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cloth\cloth_changer.h">
+      <Filter>Cloth</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cloth\offsets.h">
+      <Filter>Cloth</Filter>
     </ClInclude>
     <ClInclude Include="src\gui\imconfig.h">
       <Filter>ImGui</Filter>

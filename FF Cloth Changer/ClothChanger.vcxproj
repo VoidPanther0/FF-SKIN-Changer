@@ -163,6 +163,7 @@
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\auth\supabase_auth.cpp" />
+    <ClCompile Include="src\cloth\cloth_changer.cpp" />
     <ClCompile Include="src\ui.cpp" />
     <ClCompile Include="src\screen\dashboard.cpp" />
     <ClCompile Include="src\screen\common\dashboard_common.cpp" />
@@ -183,6 +184,8 @@
     <ClInclude Include="src\screen\common\dashboard_common.h" />
     <ClInclude Include="src\screen\common\login_common.h" />
     <ClInclude Include="src\auth\json_lite.h" />
+    <ClInclude Include="src\cloth\cloth_changer.h" />
+    <ClInclude Include="src\cloth\offsets.h" />
     <ClInclude Include="src\Resources\resource.h" />
     <ClInclude Include="src\auth\supabase_auth.h" />
     <ClInclude Include="src\gui\imconfig.h" />

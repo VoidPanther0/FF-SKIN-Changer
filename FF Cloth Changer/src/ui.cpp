@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "auth/supabase_auth.h"
+#include "cloth/cloth_changer.h"
 #include "imgui_internal.h"
 
 #include <cfloat>
@@ -358,11 +359,15 @@ void app::Init()
 	screen_dashboard::LoadPreferences();
 
 	sdauth::Init();
+	cloth::Init();
 	screen_login::Init();
 }
 
 void app::Shutdown()
 {
+	// Stops the swap worker and writes every original item pointer back into
+	// the game before anything else is torn down.
+	cloth::Shutdown();
 	screen_login::Shutdown();
 }
 

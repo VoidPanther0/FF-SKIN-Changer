@@ -1,5 +1,6 @@
 #include "app.h"
 #include "Resources/resource.h"
+#include "cloth/offsets.h"
 
 #include <dwmapi.h>
 #include <shellapi.h>
@@ -95,44 +96,9 @@ bool StartProcess(const std::wstring& file)
 	return true;
 }
 
-// Emulator process names, matched case-insensitively against the running
-// process list. The tool drives a game running inside an emulator, so there is
-// nothing to attach to unless one of these is alive.
-constexpr const wchar_t* const kEmulatorProcesses[] = {
-	// BlueStacks 5 / 4 / X
-	L"HD-Player.exe",
-	L"HD-Agent.exe",
-	L"BstkSvc.exe",
-	L"Bluestacks.exe",
-	L"BlueStacks.exe",
-	// LDPlayer 9 / 4
-	L"dnplayer.exe",
-	L"Ld9BoxHeadless.exe",
-	L"LdVBoxHeadless.exe",
-	// NoxPlayer
-	L"Nox.exe",
-	L"NoxVMHandle.exe",
-	L"NoxSVC.exe",
-	// MEmu Play
-	L"MEmu.exe",
-	L"MEmuHeadless.exe",
-	L"MEmuSVC.exe",
-	// MuMu Player
-	L"NemuPlayer.exe",
-	L"NemuHeadless.exe",
-	L"MuMuPlayer.exe",
-	// GameLoop
-	L"GameLoop.exe",
-	L"AppMarket.exe",
-	L"TxAppMarket.exe",
-	// SmartGaga
-	L"ProjectTitan.exe",
-	L"EngineService.exe",
-	// Genymotion / VirtualBox based
-	L"Genymotion.exe",
-	L"VBoxHeadless.exe",
-};
-
+// Emulator process names live in cloth/offsets.h so the startup check and the
+// memory module always agree on one list. The tool drives a game running
+// inside an emulator, so there is nothing to attach to unless one is alive.
 bool IsEmulatorRunning()
 {
 	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -147,9 +113,9 @@ bool IsEmulatorRunning()
 	{
 		do
 		{
-			for (const wchar_t* name : kEmulatorProcesses)
+			for (int i = 0; i < offsets::target::kHostProcessCount; ++i)
 			{
-				if (_wcsicmp(entry.szExeFile, name) == 0)
+				if (_wcsicmp(entry.szExeFile, offsets::target::kHostProcesses[i]) == 0)
 				{
 					found = true;
 					break;
