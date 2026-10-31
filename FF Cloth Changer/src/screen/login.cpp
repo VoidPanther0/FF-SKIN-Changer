@@ -43,7 +43,7 @@ std::wstring login_settings_path(bool create_directory)
 	if (length == 0 || length >= MAX_PATH)
 		return std::wstring();
 
-	std::wstring directory = std::wstring(appdata) + L"\\SachinDevLoader";
+	std::wstring directory = std::wstring(appdata) + L"\\ClothChanger";
 	if (create_directory)
 		CreateDirectoryW(directory.c_str(), nullptr);
 
