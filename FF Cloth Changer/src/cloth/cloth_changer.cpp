@@ -24,13 +24,18 @@
 // ---------------------------------------------------------------------------
 // Local wardrobe modifier.
 //
-// The game keeps the wardrobe as a managed list of pointers. Owning a slot is
-// not checked at render time, so pointing a slot the player owns at the entry
-// of an item they do not own makes the client draw that item. The original
-// pointer is kept and written back on restore, on disable and on shutdown.
+// The game keeps every piece of clothing as an AvatarWardrobeData struct in a
+// managed list. The avatar is re-baked from four recipe-hash fields on that
+// struct (+0x08..+0x18). Overwriting the hashes of the owned entry with the
+// hashes of a target entry makes the client re-bake the owned slot as the
+// target skin, without touching the server. The slot pointer in the list is
+// never changed, so the manager's lookups and the match's wardrobe scan stay
+// intact.
 //
-// No packet is built and nothing is sent: this only changes what the local
-// client renders.
+// Original hashes are kept and written back on restore, on disable and on
+// shutdown, so leaving the tool never leaves the wardrobe half-rewritten.
+// After a commit the UI avatar's dirty flags are flipped, so the lobby mesh
+// re-builds immediately instead of waiting for the next scene change.
 // ---------------------------------------------------------------------------
 
 namespace cloth {
@@ -40,8 +45,10 @@ namespace {
 using offsets::chain;
 using offsets::list;
 using offsets::timing;
+using offsets::avatar;
 
 constexpr std::size_t kMessageSize = 192;
+constexpr std::size_t kHashBytes = list::kRecipeHashesSize;  // 16 bytes, 4 recipe hashes
 
 std::mutex g_lock;
 
@@ -69,9 +76,10 @@ bool g_enabled = false;
 struct SwapState {
 	std::uint32_t owned_id = 0;
 	std::uint32_t target_id = 0;
-	std::uint32_t value_addr = 0;    // slot whose pointer is rewritten
-	std::uint32_t original_ptr = 0;  // written back on restore
-	std::uint32_t target_ptr = 0;    // currently wanted pointer
+	std::uint32_t owned_entry = 0;             // AvatarWardrobeData* of the owned id
+	std::uint8_t  original[kHashBytes]{};      // written back on restore
+	std::uint8_t  target_hashes[kHashBytes]{}; // currently wanted hashes
+	bool          has_original = false;        // true after the first commit
 };
 
 std::vector<Applied> g_applied;
@@ -273,7 +281,10 @@ bool TryGetInstance(std::uint32_t& instance)
 
 	std::uint32_t base_method = 0;
 	if (!ReadValue(base + chain::kBssSlotRva, base_method) || base_method == 0)
-		return false;
+	{
+		if (!ReadValue(base + chain::kBssSlotRvaAlt, base_method) || base_method == 0)
+			return false;
+	}
 
 	std::uint32_t method_info = 0;
 	if (!ReadValue(base_method, method_info) || method_info == 0)
@@ -328,12 +339,19 @@ bool TryGetMData(std::uint32_t& items_array, int& count)
 	return true;
 }
 
-// Walks the items array for one item id. Reports the address of the slot that
-// holds the pointer, so the caller can rewrite exactly that word.
-bool TryFindListEntry(std::uint32_t items_array, int count, std::uint32_t item_id,
-	std::uint32_t& slot_addr, std::uint32_t& entry_ptr)
+// Guards against junk pointers that would otherwise fault the emulator process
+// when the chain lands outside the game image.
+bool LooksLikeGuestPtr(std::uint32_t p)
 {
-	slot_addr = 0;
+	return p >= 0x10000u && p <= 0xFFFFFFF0u;
+}
+
+// Walks the items array for one item id. Returns the address of the
+// AvatarWardrobeData struct whose iID matches, so the caller can read or
+// rewrite its recipe-hash block.
+bool TryFindEntryById(std::uint32_t items_array, int count, std::uint32_t item_id,
+	std::uint32_t& entry_ptr)
+{
 	entry_ptr = 0;
 
 	for (int i = 0; i < count; ++i)
@@ -342,7 +360,7 @@ bool TryFindListEntry(std::uint32_t items_array, int count, std::uint32_t item_i
 			+ static_cast<std::uint32_t>(i) * list::kElementStride;
 
 		std::uint32_t data_ptr = 0;
-		if (!ReadValue(slot, data_ptr) || data_ptr == 0)
+		if (!ReadValue(slot, data_ptr) || !LooksLikeGuestPtr(data_ptr))
 			continue;
 
 		std::uint32_t found_id = 0;
@@ -352,7 +370,6 @@ bool TryFindListEntry(std::uint32_t items_array, int count, std::uint32_t item_i
 		if (found_id != item_id)
 			continue;
 
-		slot_addr = slot;
 		entry_ptr = data_ptr;
 		return true;
 	}
@@ -360,8 +377,65 @@ bool TryFindListEntry(std::uint32_t items_array, int count, std::uint32_t item_i
 	return false;
 }
 
-// Makes sure one slot points at the wanted item. Returns true when the slot
-// is live after the call.
+// Finds the local UIAvatar instance (lobby). Best-effort: a miss just means
+// the lobby refresh is skipped for this commit, the hashes are still written.
+bool TryGetLobbyAvatar(std::uint32_t& ui_avatar)
+{
+	ui_avatar = 0;
+
+	const std::uint32_t base = ActiveBase();
+	if (base == 0)
+		return false;
+
+	// UIMaleAvatar.get_LocalAvatar is a short wrapper whose static-field
+	// block holds the local avatar pointer. The RVA is stable across content
+	// patches of the same build.
+	std::uint32_t method_slot = 0;
+	if (!ReadValue(base + avatar::kGetLocalAvatarRva, method_slot) || !LooksLikeGuestPtr(method_slot))
+		return false;
+
+	// Try both common MethodInfo::klass layouts.
+	std::uint32_t static_fields = 0;
+	for (std::uint32_t koff : { 0x10u, 0x0Cu })
+	{
+		std::uint32_t klass = 0;
+		if (!ReadValue(method_slot + koff, klass) || !LooksLikeGuestPtr(klass))
+			continue;
+		if (!ReadValue(klass + chain::kKlassToStaticFields, static_fields) || !LooksLikeGuestPtr(static_fields))
+			continue;
+		break;
+	}
+	if (static_fields == 0)
+		return false;
+
+	std::uint32_t local = 0;
+	if (!ReadValue(static_fields, local) || !LooksLikeGuestPtr(local))
+		return false;
+
+	ui_avatar = local;
+	return true;
+}
+
+// Flips the dirty flags on the lobby UI avatar so the game re-bakes it. A
+// failure here is quiet by design: a commit still landed, the mesh will
+// refresh on the next scene change.
+void PokeLobbyRefresh()
+{
+	std::uint32_t ui_avatar = 0;
+	if (!TryGetLobbyAvatar(ui_avatar))
+		return;
+
+	const std::uint8_t one = 1;
+	WriteRaw(ui_avatar + avatar::kUIAvatarPendingBuild, &one, sizeof(one));
+	WriteRaw(ui_avatar + avatar::kUIAvatarIsDirty, &one, sizeof(one));
+
+	std::uint32_t internal_state = 0;
+	if (ReadValue(ui_avatar + avatar::kUIStatedInternal, internal_state) && LooksLikeGuestPtr(internal_state))
+		WriteRaw(internal_state + avatar::kInternalDirty, &one, sizeof(one));
+}
+
+// Makes sure one owned entry carries the target's recipe hashes. Returns true
+// when the entry is reachable after the call.
 bool EnsureSwap(std::uint32_t items_array, int count, std::uint32_t owned_id, std::uint32_t target_id)
 {
 	SwapState* state = nullptr;
@@ -376,46 +450,56 @@ bool EnsureSwap(std::uint32_t items_array, int count, std::uint32_t owned_id, st
 
 	if (state == nullptr)
 	{
-		std::uint32_t owned_slot = 0;
-		std::uint32_t owned_ptr = 0;
-		if (!TryFindListEntry(items_array, count, owned_id, owned_slot, owned_ptr))
-			return false;
-
-		std::uint32_t target_slot = 0;
-		std::uint32_t target_ptr = 0;
-		if (!TryFindListEntry(items_array, count, target_id, target_slot, target_ptr) || target_ptr == 0)
-			return false;
-
 		g_swaps.push_back(SwapState{});
 		state = &g_swaps.back();
 		state->owned_id = owned_id;
 		state->target_id = target_id;
-		state->value_addr = owned_slot;
-		state->original_ptr = owned_ptr;
-		state->target_ptr = target_ptr;
-	}
-	else if (state->target_id != target_id)
-	{
-		std::uint32_t unused_slot = 0;
-		std::uint32_t new_target = 0;
-		if (!TryFindListEntry(items_array, count, target_id, unused_slot, new_target) || new_target == 0)
-			return false;
-
-		state->target_id = target_id;
-		state->target_ptr = new_target;
 	}
 
-	std::uint32_t current = 0;
-	if (!ReadValue(state->value_addr, current))
+	// Re-resolve the owned entry on each commit: the wardrobe list is
+	// reallocated when the player enters a match, which invalidates every
+	// cached pointer. Looking up by id is cheap next to the write cost.
+	std::uint32_t owned_entry = 0;
+	if (!TryFindEntryById(items_array, count, owned_id, owned_entry) || !LooksLikeGuestPtr(owned_entry))
 		return false;
 
-	if (current == state->target_ptr)
+	// A reallocation that moved the owned entry means the saved original is
+	// no longer the game's own baseline; grab a fresh one before writing.
+	if (!state->has_original || owned_entry != state->owned_entry)
+	{
+		std::uint8_t fresh[kHashBytes]{};
+		if (!ReadRaw(owned_entry + list::kEntryToRecipeHashes, fresh, kHashBytes))
+			return false;
+		std::memcpy(state->original, fresh, kHashBytes);
+		state->has_original = true;
+		state->owned_entry = owned_entry;
+	}
+
+	// Pull the target hashes once per commit; the target entry can also
+	// move. Fail quietly if the target id is not in the game's table.
+	std::uint32_t target_entry = 0;
+	if (!TryFindEntryById(items_array, count, target_id, target_entry) || !LooksLikeGuestPtr(target_entry))
+		return false;
+
+	std::uint8_t wanted[kHashBytes]{};
+	if (!ReadRaw(target_entry + list::kEntryToRecipeHashes, wanted, kHashBytes))
+		return false;
+	std::memcpy(state->target_hashes, wanted, kHashBytes);
+	state->target_id = target_id;
+
+	// Overwrite only when the hashes drifted — avoids a syscall per tick
+	// once the swap is settled.
+	std::uint8_t current[kHashBytes]{};
+	if (!ReadRaw(owned_entry + list::kEntryToRecipeHashes, current, kHashBytes))
+		return false;
+
+	if (std::memcmp(current, wanted, kHashBytes) == 0)
 		return true;
 
-	return WriteRaw(state->value_addr, &state->target_ptr, sizeof(state->target_ptr));
+	return WriteRaw(owned_entry + list::kEntryToRecipeHashes, wanted, kHashBytes);
 }
 
-// Puts one slot back to the pointer the game originally held.
+// Puts one entry's hashes back to what the game first held.
 void RestoreSlot(std::uint32_t owned_id)
 {
 	for (std::size_t i = 0; i < g_swaps.size(); ++i)
@@ -424,8 +508,8 @@ void RestoreSlot(std::uint32_t owned_id)
 		if (state.owned_id != owned_id)
 			continue;
 
-		if (state.value_addr != 0 && state.original_ptr != 0)
-			WriteRaw(state.value_addr, &state.original_ptr, sizeof(state.original_ptr));
+		if (state.has_original && state.owned_entry != 0)
+			WriteRaw(state.owned_entry + list::kEntryToRecipeHashes, state.original, kHashBytes);
 
 		g_swaps.erase(g_swaps.begin() + static_cast<std::ptrdiff_t>(i));
 		return;
@@ -456,6 +540,11 @@ void CommitUnlocked()
 		if (EnsureSwap(items_array, count, applied.owned_id, applied.target_id))
 			++live;
 	}
+
+	// A commit that landed one or more hashes nudges the lobby avatar so the
+	// cached mesh is rebuilt this frame. A miss here is quiet by design.
+	if (live > 0)
+		PokeLobbyRefresh();
 
 	g_live = live;
 	g_commit_message[0] = '\0';
@@ -840,12 +929,52 @@ void ClearBaseOverride()
 
 // ------------------------------------------------------------- catalog ------
 
+// Reads a local text file. Used by ReloadCatalog so a clothes.json shipped
+// next to the exe is picked up without a network round trip.
+bool ReadLocalFile(const std::string& path, std::string& body, std::string& error)
+{
+	FILE* f = nullptr;
+	if (fopen_s(&f, path.c_str(), "rb") != 0 || f == nullptr)
+	{
+		error = "Catalog file not found: " + path;
+		return false;
+	}
+
+	std::fseek(f, 0, SEEK_END);
+	const long size = std::ftell(f);
+	std::fseek(f, 0, SEEK_SET);
+
+	if (size <= 0 || static_cast<std::size_t>(size) > offsets::catalog::kMaxResponseBytes)
+	{
+		std::fclose(f);
+		error = "Catalog file is empty or too large";
+		return false;
+	}
+
+	body.resize(static_cast<std::size_t>(size));
+	const std::size_t read = std::fread(body.data(), 1, body.size(), f);
+	std::fclose(f);
+
+	if (read != body.size())
+	{
+		error = "Catalog file could not be read";
+		return false;
+	}
+
+	return true;
+}
+
+bool LooksLikeUrl(const std::string& source)
+{
+	return source.rfind("http://", 0) == 0 || source.rfind("https://", 0) == 0;
+}
+
 void ReloadCatalog(const std::string& url)
 {
 	{
 		std::lock_guard<std::mutex> guard(g_lock);
 		g_catalog_status = Status::Working;
-		SetMessage(g_catalog_message, "Downloading...");
+		SetMessage(g_catalog_message, LooksLikeUrl(url) ? "Downloading..." : "Loading...");
 	}
 
 	std::thread([url]()
@@ -854,7 +983,10 @@ void ReloadCatalog(const std::string& url)
 		std::string error;
 		std::vector<Entry> parsed;
 
-		const bool ok = HttpGet(url, body, error) && ParseCatalog(body, parsed);
+		const bool fetched = LooksLikeUrl(url)
+			? HttpGet(url, body, error)
+			: ReadLocalFile(url, body, error);
+		const bool ok = fetched && ParseCatalog(body, parsed);
 
 		std::lock_guard<std::mutex> guard(g_lock);
 		if (ok)
@@ -1081,14 +1213,43 @@ std::vector<Slot> WardrobeSlots()
 
 Category Categorize(const Entry& entry)
 {
-	// Description keywords win over the id range, because a mask or a
-	// facepaint can share a range with a wearable piece.
+	// The catalog's own wardrobeType string is authoritative when it's set,
+	// because it mirrors the byte the game uses at +0x2C of the entry struct.
+	// A mask and a hat share item-id prefix 211, so the range alone can't
+	// tell them apart.
+	if (!entry.wardrobe_type.empty())
+	{
+		const unsigned long wt = std::strtoul(entry.wardrobe_type.c_str(), nullptr, 10);
+		switch (wt)
+		{
+		case list::kWtChest:   return Category::Top;
+		case list::kWtLegs:    return Category::Bottom;
+		case list::kWtFeet:    return Category::Shoes;
+		case list::kWtHair:    return Category::Head;
+		case list::kWtHead:    return Category::Head;
+		case list::kWtFace:    return Category::Mask;
+		case list::kWtHeadAdd: return Category::Facepaint;
+		default: break;
+		}
+	}
+
+	// Description keywords win over the id range: a mask and a hat share
+	// prefix 211, so the string tag the game ships is the next best signal.
 	if (entry.description.find("(Mask)") != std::string::npos)
+		return Category::Mask;
+	if (entry.description.find("(Glasses)") != std::string::npos)
 		return Category::Mask;
 	if (entry.description.find("(Facepaint)") != std::string::npos)
 		return Category::Facepaint;
+	if (entry.description.find("(Hair)") != std::string::npos)
+		return Category::Head;
+	if (entry.description.find("(Head)") != std::string::npos)
+		return Category::Head;
 	if (ContainsCi(entry.icon, "hair"))
 		return Category::Head;
+	if (ContainsCi(entry.icon, "mask") || ContainsCi(entry.icon, "glasses")
+		|| ContainsCi(entry.icon, "blinder"))
+		return Category::Mask;
 
 	switch (entry.item_id / 1000000u)
 	{
@@ -1097,6 +1258,7 @@ Category Categorize(const Entry& entry)
 	case 205: return Category::Shoes;
 	case 211: return Category::Head;
 	case 214: return Category::Facepaint;
+	case 212: return Category::Top;    // one-piece onesies render as Top
 	default:  return Category::Other;
 	}
 }

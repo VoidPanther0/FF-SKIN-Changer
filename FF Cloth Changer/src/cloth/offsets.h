@@ -133,9 +133,12 @@ inline constexpr std::uint32_t kMinImageSpan = 0x100000u;
 
 namespace chain {
 
-// RVA of the static pointer slot. Moves on almost every game patch. The value
-// carried over from the previous source was 0xA987F88 for build 2019121229.
-inline constexpr std::uint32_t kBssSlotRva = 0xA987F88u;
+// RVA of the static pointer slot. Moves on almost every game patch. Two slots
+// resolve to the same singleton on build 2019121229: one is populated early
+// in the lifecycle, the other after the lobby load; the loader tries primary
+// first, then alt, and takes whichever comes back non-null.
+inline constexpr std::uint32_t kBssSlotRva = 0xA344250u;
+inline constexpr std::uint32_t kBssSlotRvaAlt = 0xA987F88u;
 
 // MethodInfo::klass. The 32-bit layout is methodPointer, invoker_method, name,
 // klass, which puts klass at 0x0C on most Unity versions and at 0x10 on the
@@ -168,7 +171,13 @@ inline constexpr std::uint32_t kStaticFieldsInstance = 0x00u;
 //   T[]
 //     +0x10  first element
 //   AvatarWardrobeData
+//     +0x08  int recipeHashInLobby    (M)
+//     +0x0C  int recipeHashInGame     (M)
+//     +0x10  int recipeHashInLobby_F  (F)
+//     +0x14  int recipeHashInGame_F   (F)
 //     +0x28  uint iID
+//     +0x2C  byte wardrobeType  (1=Head, 3=Chest, 4=Legs, 5=Feet,
+//                                 8=Face, 11=Hair, 12=Set, 14=HeadAdd)
 
 namespace list {
 
@@ -189,6 +198,27 @@ inline constexpr std::uint32_t kElementStride = 0x04u;
 // AvatarWardrobeData.iID, the item id. Confirmed at 0x28.
 inline constexpr std::uint32_t kEntryToItemId = 0x28u;
 
+// Four 32-bit recipe hashes starting at +0x08: InLobby(M), InGame(M),
+// InLobby(F), InGame(F). Overwriting these with another item's hashes is what
+// actually re-skins the avatar — swapping the slot pointer alone doesn't
+// re-bake the character mesh.
+inline constexpr std::uint32_t kEntryToRecipeHashes = 0x08u;
+inline constexpr std::uint32_t kRecipeHashesSize = 0x10u;
+
+// AvatarWardrobeData.wardrobeType, the slot a piece belongs to.
+inline constexpr std::uint32_t kEntryToWardrobeType = 0x2Cu;
+
+// EWardrobeType constants. The game writes any item of a slot to the same
+// bucket; a top id lives next to another top id, never next to a mask.
+inline constexpr std::uint8_t kWtHead     = 1;
+inline constexpr std::uint8_t kWtChest    = 3;
+inline constexpr std::uint8_t kWtLegs     = 4;
+inline constexpr std::uint8_t kWtFeet     = 5;
+inline constexpr std::uint8_t kWtFace     = 8;
+inline constexpr std::uint8_t kWtHair     = 11;
+inline constexpr std::uint8_t kWtSet      = 12;
+inline constexpr std::uint8_t kWtHeadAdd  = 14;
+
 // The manager sizes its own table at CapacityClothData = 7000, so a sane
 // ceiling sits just above that. A count past this means the chain landed
 // somewhere else, so the scan refuses instead of walking heap until the
@@ -196,6 +226,32 @@ inline constexpr std::uint32_t kEntryToItemId = 0x28u;
 inline constexpr int kMaxEntries = 8192;
 
 } // namespace list
+
+// ----------------------------------------------------------- lobby avatar ----
+//
+// After the recipe hashes change the game needs to know its avatar is stale,
+// otherwise the lobby holds the cached mesh until the player leaves. These
+// fields are the dirty flags the game checks on its own rebuild tick.
+//
+//   UIAvatarBase.m_PendingChangesForBuild  @ 0x79  (write 1)
+//   UIAvatar.IsDirty                       @ 0xAA  (write 1)
+//   UIStatedAvatar.m_InternalState         @ 0x284
+//   InternalState.CurrentStateDirty        @ 0x51  (write 1)
+//
+// Static-fields RVA of UIMaleAvatar.LocalAvatar lives at kGetLocalAvatarRva;
+// walking from there finds the local UIAvatar instance without a scene scan.
+
+namespace avatar {
+
+inline constexpr std::uint32_t kInitBaseRva = 0xA342EFCu;      // GameFacade / MatchGame chain head
+inline constexpr std::uint32_t kGetLocalAvatarRva = 0x1AD4758u; // UIMaleAvatar.get_LocalAvatar
+
+inline constexpr std::uint32_t kUIAvatarPendingBuild = 0x79u;
+inline constexpr std::uint32_t kUIAvatarIsDirty = 0xAAu;
+inline constexpr std::uint32_t kUIStatedInternal = 0x284u;
+inline constexpr std::uint32_t kInternalDirty = 0x51u;
+
+} // namespace avatar
 
 // ----------------------------------------------------------------- timing ----
 //
@@ -219,8 +275,9 @@ inline constexpr unsigned kAttachRetryMs = 1000;   // re-resolve when not attach
 
 namespace catalog {
 
-inline constexpr const char* kDefaultUrl =
-	"https://raw.githubusercontent.com/OWNER/REPO/main/clothes.json";
+// Local file next to the exe is tried first; the loader also accepts an
+// http(s):// URL and switches to the HTTP path automatically.
+inline constexpr const char* kDefaultUrl = "clothes.json";
 
 // A response larger than this is rejected as the wrong file.
 inline constexpr std::size_t kMaxResponseBytes = 8u * 1024u * 1024u;
