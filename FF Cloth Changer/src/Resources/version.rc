@@ -20,13 +20,13 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Sachin Dev"
-            VALUE "FileDescription", "Sachin Dev Loader"
+            VALUE "CompanyName", "Cloth Changer"
+            VALUE "FileDescription", "Cloth Changer"
             VALUE "FileVersion", "1"
-            VALUE "InternalName", "SachinDevLoader"
+            VALUE "InternalName", "ClothChanger"
             VALUE "LegalCopyright", "Copyright (C) 2026"
-            VALUE "OriginalFilename", "SachinDevLoader.exe"
-            VALUE "ProductName", "Sachin Dev Loader"
+            VALUE "OriginalFilename", "ClothChanger.exe"
+            VALUE "ProductName", "Cloth Changer"
         END
     END
     BLOCK "VarFileInfo"

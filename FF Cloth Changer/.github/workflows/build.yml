@@ -1,0 +1,81 @@
+name: Build ClothChanger
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - 'ClothChanger.vcxproj'
+      - 'ClothChanger.sln'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.configuration }} | ${{ matrix.platform }})
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [ Release ]
+        platform: [ x64, x86 ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build solution
+        run: >
+          msbuild ClothChanger.sln
+          /m
+          /p:Configuration=${{ matrix.configuration }}
+          /p:Platform=${{ matrix.platform }}
+          /p:WindowsTargetPlatformVersion=10.0
+          /v:minimal
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item "x64\${{ matrix.configuration }}\ClothChanger.exe" "out\" -ErrorAction SilentlyContinue
+          Copy-Item "${{ matrix.configuration }}\ClothChanger.exe" "out\" -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter ClothChanger.exe |
+            ForEach-Object { Copy-Item $_.FullName "out\ClothChanger-${{ matrix.platform }}.exe" -Force }
+          Get-ChildItem out
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClothChanger-${{ matrix.platform }}-${{ matrix.configuration }}
+          path: out/
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Zip binaries
+        run: cd dist && zip -r ClothChanger.zip .
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ClothChanger.zip
+          generate_release_notes: true
