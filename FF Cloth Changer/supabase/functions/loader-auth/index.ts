@@ -31,7 +31,9 @@ const API_KEY = ReadEnvKey("SUPABASE_PUBLISHABLE_KEYS") || ReadEnvKey("SUPABASE_
 
 const EMAIL_DOMAIN = "loader.local";
 const GITHUB_REPO = "sapkotasachin064-beep/Sachin-Dev-Loader";
-const EXE_NAMES = ["SachinDevLoader.exe", "ImGuiTemplate.exe"];
+// ClothChanger.exe is the current build; the older names keep in-field
+// clients matching a release until they update themselves.
+const EXE_NAMES = ["ClothChanger.exe", "SachinDevLoader.exe", "ImGuiTemplate.exe"];
 const GITHUB_TIMEOUT_MS = 4500;
 const RELEASE_MEMORY_MS = 300_000;
 const RELEASE_MISS_MEMORY_MS = 20_000;
@@ -422,7 +424,7 @@ async function FetchRelease(version: string): Promise<ReleaseInfo | null> {
 	const timer = setTimeout(() => controller.abort(), GITHUB_TIMEOUT_MS);
 	const headers = {
 		"Accept": "application/vnd.github+json",
-		"User-Agent": "SachinDevLoader-release",
+		"User-Agent": "ClothChanger-release",
 	};
 
 	try {
