@@ -36,8 +36,8 @@ void apply_theme(bool light);
 // Layout of the shell and the content area. The window is app::kWidth x
 // app::kHeight (800x560); everything below fits inside it.
 constexpr float kTitleHeight = 64.0f;
-constexpr float kSidebarWidth = 232.0f;
-constexpr float kContentLeft = 264.0f;
+constexpr float kSidebarWidth = 0.0f;
+constexpr float kContentLeft = 20.0f;
 constexpr float kContentRight = 780.0f;
 constexpr float kContentTop = 88.0f;
 constexpr float kContentBottom = 492.0f;
