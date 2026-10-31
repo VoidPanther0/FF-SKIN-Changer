@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ImGui">
+      <UniqueIdentifier>{A9E4BF7A-7C10-4C0F-9B5A-1D2A0F3E4B11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Auth">
+      <UniqueIdentifier>{6B1F0C2A-5D3E-4A7B-8C9D-0E1F2A3B4C5D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGui\Backends">
+      <UniqueIdentifier>{C2D8E4B6-1F3A-4C7D-9E5B-8A6F2D1C3B40}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Screens">
+      <UniqueIdentifier>{7B4E2D61-9C38-4F5A-B1D2-6E8A0C3F9D24}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\auth\supabase_auth.cpp">
+      <Filter>Auth</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\screen\dashboard.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
+    <ClCompile Include="src\screen\common\dashboard_common.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
+    <ClCompile Include="src\screen\home.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
+    <ClCompile Include="src\screen\loading.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
+    <ClCompile Include="src\screen\login.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
+    <ClCompile Include="src\screen\common\login_common.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\imgui.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\imgui_draw.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\imgui_tables.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\imgui_widgets.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\backends\imgui_impl_dx11.cpp">
+      <Filter>ImGui\Backends</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui\backends\imgui_impl_win32.cpp">
+      <Filter>ImGui\Backends</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\app.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ui.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\screen\common\dashboard_common.h">
+      <Filter>Screens</Filter>
+    </ClInclude>
+    <ClInclude Include="src\screen\common\login_common.h">
+      <Filter>Screens</Filter>
+    </ClInclude>
+    <ClInclude Include="src\auth\json_lite.h">
+      <Filter>Auth</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Resources\resource.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\auth\supabase_auth.h">
+      <Filter>Auth</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\imconfig.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\imgui.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\imgui_internal.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\imstb_rectpack.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\imstb_textedit.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\imstb_truetype.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\backends\imgui_impl_dx11.h">
+      <Filter>ImGui\Backends</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui\backends\imgui_impl_win32.h">
+      <Filter>ImGui\Backends</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\Resources\version.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Resources\app.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="src\Resources\Slogo.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <Manifest Include="src\Resources\app.manifest">
+      <Filter>Resource Files</Filter>
+    </Manifest>
+  </ItemGroup>
+</Project>
