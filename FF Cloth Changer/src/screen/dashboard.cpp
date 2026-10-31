@@ -179,7 +179,7 @@ void draw_footer()
 	draw->AddCircleFilled(ImVec2(kContentLeft + 4.0f, text_y + 6.0f), 3.0f, color_u32(state_color));
 
 	char left[160];
-	std::snprintf(left, sizeof(left), "Sachin Loader v%s  |  %s  |  session %s", app::kVersion,
+	std::snprintf(left, sizeof(left), "Cloth Changer v%s  |  %s  |  session %s", app::kVersion,
 		server_state_text(), session_time().c_str());
 	text(font.caption, 10.0f, ImVec2(kContentLeft + 14.0f, text_y), kDim, left);
 

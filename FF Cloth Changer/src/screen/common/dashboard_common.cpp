@@ -67,7 +67,7 @@ std::wstring settings_path(bool create_directory)
 	if (length == 0 || length >= MAX_PATH)
 		return std::wstring();
 
-	std::wstring directory = std::wstring(appdata) + L"\\SachinDevLoader";
+	std::wstring directory = std::wstring(appdata) + L"\\ClothChanger";
 	if (create_directory)
 		CreateDirectoryW(directory.c_str(), nullptr);
 
@@ -549,7 +549,7 @@ void open_data_folder()
 	if (length == 0 || length >= MAX_PATH)
 		return;
 
-	const std::wstring directory = std::wstring(appdata) + L"\\SachinDevLoader";
+	const std::wstring directory = std::wstring(appdata) + L"\\ClothChanger";
 	CreateDirectoryW(directory.c_str(), nullptr);
 	ShellExecuteW(nullptr, L"open", directory.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 }
@@ -578,7 +578,7 @@ std::string diagnostics_text()
 
 	char value[768];
 	std::snprintf(value, sizeof(value),
-		"Sachin Loader diagnostics\r\n"
+		"Cloth Changer diagnostics\r\n"
 		"Version: %s\r\n"
 		"Account: %s\r\n"
 		"Access until: %s\r\n"
@@ -637,7 +637,7 @@ std::wstring component_cache_path(const std::string& name)
 	if (file.empty())
 		file = L"component";
 
-	return std::wstring(appdata) + L"\\SachinDevLoader\\components\\" + file + L".exe";
+	return std::wstring(appdata) + L"\\ClothChanger\\components\\" + file + L".exe";
 }
 
 long long component_cache_size(const std::string& name)

@@ -35,7 +35,7 @@ namespace {
 const wchar_t* kBaseUrl = L"https://xdtidxtkvrmurzogkxuv.supabase.co";
 const wchar_t* kAuthFunctionPath = L"/functions/v1/loader-auth";
 const char* kPublishableKey = "sb_publishable_xoEwnFlQuy-LLO5h8CRW_w_lS_uiEYr";
-const std::string kUserAgent = std::string("SachinDevLoader/") + app::kVersion;
+const std::string kUserAgent = std::string("ClothChanger/") + app::kVersion;
 
 const int kHeartbeatSeconds = 300;
 const std::size_t kMaxResponseBytes = 256 * 1024;
@@ -754,14 +754,14 @@ void SetLaunch(int status, int progress, const std::string& message) {
 	g_launch_status.store(status);
 }
 
-// Folder for downloaded components: %APPDATA%\SachinDevLoader\components.
+// Folder for downloaded components: %APPDATA%\ClothChanger\components.
 std::wstring ComponentDirectory() {
 	wchar_t appdata[MAX_PATH] = {};
 	const DWORD length = GetEnvironmentVariableW(L"APPDATA", appdata, MAX_PATH);
 	if (length == 0 || length >= MAX_PATH)
 		return std::wstring();
 
-	std::wstring directory = std::wstring(appdata) + L"\\SachinDevLoader";
+	std::wstring directory = std::wstring(appdata) + L"\\ClothChanger";
 	CreateDirectoryW(directory.c_str(), nullptr);
 	directory += L"\\components";
 	CreateDirectoryW(directory.c_str(), nullptr);
