@@ -164,7 +164,7 @@ std::string diagnostics_text();
 const char* server_state_text();
 ImVec4 server_state_color();
 
-// Cached component file in %APPDATA%\SachinDevLoader\components, or empty.
+// Cached component file in %APPDATA%\ClothChanger\components, or empty.
 std::wstring component_cache_path(const std::string& name);
 // Size in bytes of the cached file, or -1 when it is not downloaded.
 long long component_cache_size(const std::string& name);

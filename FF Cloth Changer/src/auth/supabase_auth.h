@@ -146,7 +146,7 @@ std::vector<Component> Components();
 // Unix seconds when this account's access ends. 0 means no expiry.
 long long AccountExpiresAt();
 
-// Downloads a component (SHA-256 checked, cached in %APPDATA%\SachinDevLoader
+// Downloads a component (SHA-256 checked, cached in %APPDATA%\ClothChanger
 // \components) and starts it. Runs on a worker thread; poll the status below.
 // Returns false when a launch is already running or the component cannot start.
 bool LaunchComponent(const std::string& name);
