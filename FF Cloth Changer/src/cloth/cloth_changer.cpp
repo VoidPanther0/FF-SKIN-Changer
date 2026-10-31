@@ -42,10 +42,10 @@ namespace cloth {
 
 namespace {
 
-using offsets::chain;
-using offsets::list;
-using offsets::timing;
-using offsets::avatar;
+namespace chain = offsets::chain;
+namespace list = offsets::list;
+namespace timing = offsets::timing;
+namespace avatar = offsets::avatar;
 
 constexpr std::size_t kMessageSize = 192;
 constexpr std::size_t kHashBytes = list::kRecipeHashesSize;  // 16 bytes, 4 recipe hashes
