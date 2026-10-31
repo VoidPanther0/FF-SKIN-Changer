@@ -1025,6 +1025,58 @@ const char* CommitMessage()
 	return g_commit_message;
 }
 
+// ---------------------------------------------------------------- live ------
+
+bool WardrobeReadable()
+{
+	std::lock_guard<std::mutex> guard(g_lock);
+
+	if (g_process == nullptr)
+		return false;
+
+	std::uint32_t items_array = 0;
+	int count = 0;
+	return TryGetMData(items_array, count);
+}
+
+std::vector<Slot> WardrobeSlots()
+{
+	std::lock_guard<std::mutex> guard(g_lock);
+
+	std::vector<Slot> slots;
+	if (g_process == nullptr)
+		return slots;
+
+	std::uint32_t items_array = 0;
+	int count = 0;
+	if (!TryGetMData(items_array, count))
+		return slots;
+
+	// Only the game knows which ids are really loaded, so the list is read
+	// back instead of guessed from the catalog.
+	slots.reserve(static_cast<std::size_t>(count));
+	for (int i = 0; i < count; ++i)
+	{
+		const std::uint32_t slot = items_array
+			+ static_cast<std::uint32_t>(i) * offsets::list::kElementStride;
+
+		std::uint32_t data_ptr = 0;
+		if (!ReadValue(slot, data_ptr) || data_ptr == 0)
+			continue;
+
+		std::uint32_t item_id = 0;
+		if (!ReadValue(data_ptr + offsets::list::kEntryToItemId, item_id))
+			continue;
+
+		Slot entry;
+		entry.index = i;
+		entry.item_id = item_id;
+		slots.push_back(entry);
+	}
+
+	return slots;
+}
+
 // ---------------------------------------------------------------- helpers ----
 
 Category Categorize(const Entry& entry)

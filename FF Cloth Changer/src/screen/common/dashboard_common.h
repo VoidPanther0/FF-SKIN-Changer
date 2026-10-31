@@ -47,6 +47,7 @@ constexpr float kContentBottom = 492.0f;
 enum Page
 {
 	PageHome = 0,
+	PageCloth,
 	PageProduct,
 	PageGameUpdates,
 	PageSocials,
@@ -113,6 +114,7 @@ void icon_updates(ImVec2 c, ImU32 color);
 void icon_socials(ImVec2 c, ImU32 color);
 void icon_logout(ImVec2 c, ImU32 color);
 void icon_search(ImVec2 c, ImU32 color);
+void icon_hanger(ImVec2 c, ImU32 color);   // nav: cloth page
 
 void icon_components(ImVec2 c, ImU32 color); // stat: components
 void icon_cube(ImVec2 c, ImU32 color);       // stat: build
@@ -253,6 +255,10 @@ void progress_bar(const ui::Rect& r, float fraction, const ImVec4& color);
 // ------------------------------------------------------------------ pages ----
 
 void DrawHome();
+
+// The wardrobe page: live slots on the left, catalog picker on the right,
+// applied swaps along the bottom.
+void DrawCloth();
 
 // Called once per frame by the shell; ends a finished launch message.
 void tick_launch();

@@ -6,14 +6,34 @@
 // Every game-build-specific value in one place. A new game patch normally
 // means editing this file only; nothing below knows a raw number.
 //
+// Verified against
+//   Free Fire 1.132.1 (build 2019121229), Il2CppDumper full dump, both the
+//   ARMv7 and the V8A image. Identical class layouts in both.
+//
 // How to update after a patch
 //   1. target::kModuleNames / kHostProcesses  - only when the emulator or the
 //      game module name changed.
 //   2. chain::kBssSlotRva                     - RVA of the static pointer slot
-//      of COW.AvatarWardrobeData. This is the one that moves every patch.
-//   3. chain::* field offsets                  - re-derived from the class
-//      layout of the new build.
-//   4. list::*                                 - the wardrobe list layout.
+//      of SingletonModule<AvatarWardrobeDataManager>. This is the one that
+//      moves on every patch.
+//   3. chain::* field offsets                 - runtime struct layout, see the
+//      notes on each value.
+//   4. list::*                                - the wardrobe list layout, all
+//      confirmed from the dump.
+//
+// Confirmed from the dump (safe to trust until the class changes)
+//   COW.AvatarWardrobeData.iID                      0x28   (TypeDefIndex 10833)
+//   AvatarWardrobeDataManager.m_dictIdToWardrobeDataTree  0x0C (TypeDefIndex 13488)
+//   IntervalTreeDic<T>.m_Data                       0x0C   second field
+//   List<T>._items / _size                          0x08 / 0x0C
+//   SingletonModule<T>._instance                    0x00   first static field
+//
+// Not in the dump (runtime struct layout, re-check when the Unity version
+// changes, not on every content patch)
+//   chain::kMethodInfoToKlass     Il2CppClass* inside MethodInfo
+//   chain::kKlassToStaticFields   static_fields inside Il2CppClass
+//   list::kArrayDataHeader        0x10 because the vector is ALIGN_TYPE(8);
+//                                 older Unity versions use 0x0C here
 //
 // All addresses are 32-bit because the game is a 32-bit IL2CPP image running
 // inside the emulator guest.
@@ -90,62 +110,89 @@ inline constexpr std::uint32_t kMinImageSpan = 0x100000u;
 
 // ------------------------------------------------------------ pointer chain --
 //
-// COW.AvatarWardrobeData (TypeDefIndex 10539).
+//   COW.AvatarWardrobeDataManager : SingletonModule<AvatarWardrobeDataManager>
+//   (TypeDefIndex 13488)
 //
-//   [image base + kBssSlotRva]          static pointer slot in BSS
+//   [image base + kBssSlotRva]              static pointer slot in BSS
 //     -> baseMethod
-//   [baseMethod]                         MethodInfo*
-//   [baseMethod + kMethodInfoToKlass]    Il2CppClass*
-//   [klass + kKlassToStaticFields]       StaticFields*
-//   [staticFields + kStaticFieldsInstance]  the singleton instance
+//   [baseMethod]                             MethodInfo*
+//   [baseMethod + kMethodInfoToKlass]        Il2CppClass*
+//   [klass + kKlassToStaticFields]           StaticFields*
+//   [staticFields + kStaticFieldsInstance]   the singleton instance
 //
-// The BSS slot holds a pointer to a small structure whose first field is the
-// MethodInfo of a method belonging to the class. That is the usual IL2CPP way
-// to reach a class from its metadata without the type cache.
+// _instance is a static field of the generic base SingletonModule<T>, so the
+// class the chain has to land on is the instantiated generic
+// SingletonModule<AvatarWardrobeDataManager>, NOT AvatarWardrobeDataManager
+// itself. The derived class declares only consts, so its own static field
+// block holds nothing and the chain would read a null instance.
+//
+// The BSS slot holds a pointer to a small structure whose first field is a
+// MethodInfo of a method on that generic class; get_instance() is the usual
+// one. That is the normal IL2CPP route to a class without walking the type
+// cache.
 
 namespace chain {
 
-// RVA of the static pointer slot. Moves on almost every game patch.
+// RVA of the static pointer slot. Moves on almost every game patch. The value
+// carried over from the previous source was 0xA987F88 for build 2019121229.
 inline constexpr std::uint32_t kBssSlotRva = 0xA987F88u;
 
+// MethodInfo::klass. The 32-bit layout is methodPointer, invoker_method, name,
+// klass, which puts klass at 0x0C on most Unity versions and at 0x10 on the
+// builds that insert virtualMethodPointer first. The game responds to 0x10;
+// if a patch stops resolving, try 0x0C before anything else.
 inline constexpr std::uint32_t kMethodInfoToKlass = 0x10u;
+
+// Il2CppClass::static_fields. Runtime struct, not in the dump.
 inline constexpr std::uint32_t kKlassToStaticFields = 0x5Cu;
 
-// Byte offset of the singleton instance inside StaticFields. The first field
-// of the static field struct is the instance for this class.
+// SingletonModule<T>._instance is the only static field of the generic class,
+// so it sits at the start of the static field block. Confirmed from the dump.
 inline constexpr std::uint32_t kStaticFieldsInstance = 0x00u;
 
 } // namespace chain
 
 // ------------------------------------------------------------ live objects ---
 //
-// The singleton's own layout:
+// Resolved one field at a time from the singleton instance. Every offset below
+// is confirmed against the 1.132.1 dump.
 //
-//   [instance + kInstanceToTreeDict]     wardrobe tree dictionary
-//   [treeDict + kTreeDictToDataList]     list of wardrobe data entries
-//   [dataList + kDataListToItems]        managed array of entry pointers
-//   [dataList + kDataListToCount]        element count (int32)
-//   [items + kArrayDataHeader]           first element (array header skip)
+//   AvatarWardrobeDataManager
+//     +0x0C  IntervalTreeDic<AvatarWardrobeData> m_dictIdToWardrobeDataTree
+//   IntervalTreeDic<T>
+//     +0x08  IntervalTree m_Tree
+//     +0x0C  List<T> m_Data
+//   List<T>
+//     +0x08  T[] _items
+//     +0x0C  int  _size
+//   T[]
+//     +0x10  first element
+//   AvatarWardrobeData
+//     +0x28  uint iID
 
 namespace list {
 
-inline constexpr std::uint32_t kInstanceToTreeDict = 0x0Cu;
-inline constexpr std::uint32_t kTreeDictToDataList = 0x0Cu;
-inline constexpr std::uint32_t kDataListToItems = 0x08u;
-inline constexpr std::uint32_t kDataListToCount = 0x0Cu;
+inline constexpr std::uint32_t kInstanceToTreeDict = 0x0Cu;   // m_dictIdToWardrobeDataTree
+inline constexpr std::uint32_t kTreeDictToDataList = 0x0Cu;   // IntervalTreeDic<T>.m_Data
+inline constexpr std::uint32_t kDataListToItems = 0x08u;      // List<T>._items
+inline constexpr std::uint32_t kDataListToCount = 0x0Cu;      // List<T>._size
 
-// Managed array header size on a 32-bit IL2CPP build: klass + monitor + length.
+// Managed array header on a 32-bit build: klass + monitor + max_length is
+// 0x0C, but the element vector is ALIGN_TYPE(8), which rounds the data start
+// to 0x10. Older Unity versions leave it at 0x0C; a scan that finds nothing
+// on a known-good list is usually this one.
 inline constexpr std::uint32_t kArrayDataHeader = 0x10u;
 
 // Each element of the items array is a 32-bit pointer to a wardrobe entry.
 inline constexpr std::uint32_t kElementStride = 0x04u;
 
-// Item id field inside a wardrobe entry. The swap scans for this value.
+// AvatarWardrobeData.iID, the item id. Confirmed at 0x28.
 inline constexpr std::uint32_t kEntryToItemId = 0x28u;
 
-// Upper bound on the number of wardrobe entries. A count above this means the
-// chain landed somewhere wrong, so the scan refuses instead of walking heap
-// until the process dies.
+// The manager sizes its own table at CapacityClothData = 7000, so a sane
+// ceiling sits just above that. A count past this means the chain landed
+// somewhere else, so the scan refuses instead of walking heap until the
+// process dies.
 inline constexpr int kMaxEntries = 8192;
 
 } // namespace list

@@ -110,6 +110,23 @@ void ClearAll();
 std::vector<Applied> AppliedList();
 int AppliedCount();
 
+// ---------------------------------------------------------------- live ------
+
+// One entry of the live wardrobe list exactly as the game holds it.
+struct Slot {
+	int index = 0;          // position in the managed array
+	std::uint32_t item_id = 0;
+};
+
+// True while the wardrobe list can be reached: the game is loaded and the
+// pointer chain resolved. False during loading, which is normal.
+bool WardrobeReadable();
+
+// Snapshot of the live list, empty when it cannot be read. Picking a slot
+// from here is what gives a swap its owned side, because only the game knows
+// which ids are really loaded.
+std::vector<Slot> WardrobeSlots();
+
 // Swaps that are currently written into the game. Lower than AppliedCount
 // while the game is still loading and the list cannot be found yet.
 int LiveCount();

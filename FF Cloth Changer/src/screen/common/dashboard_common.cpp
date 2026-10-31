@@ -294,6 +294,18 @@ void icon_search(ImVec2 c, ImU32 color)
 	draw->AddLine(ImVec2(c.x + 2.5f, c.y + 2.5f), ImVec2(c.x + 7.0f, c.y + 7.0f), color, 1.6f);
 }
 
+// Clothes hanger: the hook on top, the bar below it.
+void icon_hanger(ImVec2 c, ImU32 color)
+{
+	ImDrawList* draw = ImGui::GetWindowDrawList();
+	draw->PathClear();
+	draw->PathArcTo(ImVec2(c.x, c.y - 5.5f), 2.6f, IM_PI * 1.15f, IM_PI * 2.35f, 10);
+	draw->PathStroke(color, 0, 1.6f);
+	draw->AddLine(ImVec2(c.x, c.y - 3.0f), ImVec2(c.x - 9.0f, c.y + 3.5f), color, 1.6f);
+	draw->AddLine(ImVec2(c.x, c.y - 3.0f), ImVec2(c.x + 9.0f, c.y + 3.5f), color, 1.6f);
+	draw->AddLine(ImVec2(c.x - 9.0f, c.y + 3.5f), ImVec2(c.x + 9.0f, c.y + 3.5f), color, 1.6f);
+}
+
 void icon_components(ImVec2 c, ImU32 color)
 {
 	ImDrawList* draw = ImGui::GetWindowDrawList();
